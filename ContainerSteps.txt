@@ -1,0 +1,373 @@
+1. Install curl (if neccesary) [maybe sudo, wget, nano etc. as needed]
+(for debugging)
+
+From (AI) Google search:
+2. Install nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.6/install.sh | bash
+
+2.1. Refresh terminal:
+source ~/.bashrc
+
+3. Install node and npm:
+nvm install --lts (latest lts of node an npm)
+
+4. Install pnpm:
+npm install -g pnpm (install pnpm globally)
+
+-----
+
+Following: https://atproto.com/guides/oauth-tutorial
+5. Create project
+pnpm create next-app@latest my-app --yes
+cd my-app
+
+6. Modify next.config.ts to read:
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  allowedDevOrigins: ["127.0.0.1"],
+};
+
+export default nextConfig;
+
+7. Add oauth-client-node:
+pnpm add @atproto/oauth-client-node
+
+7.1. This will return 1 due to an error; we need to approve core-js:
+pnpm approve-builds core-js
+
+8. Create confidential client at lib/auth/client.ts: (callback port edited to 3065)
+
+import {
+  NodeOAuthClient,
+  buildAtprotoLoopbackClientMetadata,
+} from "@atproto/oauth-client-node";
+import type {
+  NodeSavedSession,
+  NodeSavedState,
+} from "@atproto/oauth-client-node";
+
+export const SCOPE = "atproto";
+
+// Use globalThis to persist across Next.js hot reloads
+const globalAuth = globalThis as unknown as {
+  stateStore: Map<string, NodeSavedState>;
+  sessionStore: Map<string, NodeSavedSession>;
+};
+globalAuth.stateStore ??= new Map();
+globalAuth.sessionStore ??= new Map();
+
+let client: NodeOAuthClient | null = null;
+
+export async function getOAuthClient(): Promise<NodeOAuthClient> {
+  if (client) return client;
+
+  client = new NodeOAuthClient({
+    clientMetadata: buildAtprotoLoopbackClientMetadata({
+      scope: SCOPE,
+      redirect_uris: ["http://127.0.0.1:3000/oauth/callback"],
+    }),
+
+    stateStore: {
+      async get(key: string) {
+        return globalAuth.stateStore.get(key);
+      },
+      async set(key: string, value: NodeSavedState) {
+        globalAuth.stateStore.set(key, value);
+      },
+      async del(key: string) {
+        globalAuth.stateStore.delete(key);
+      },
+    },
+
+    sessionStore: {
+      async get(key: string) {
+        return globalAuth.sessionStore.get(key);
+      },
+      async set(key: string, value: NodeSavedSession) {
+        globalAuth.sessionStore.set(key, value);
+      },
+      async del(key: string) {
+        globalAuth.sessionStore.delete(key);
+      },
+    },
+  });
+
+  return client;
+}
+
+
+9. Create session manager at lib/auth/session.ts:
+
+import { cookies } from "next/headers";
+import { getOAuthClient } from "./client";
+import type { OAuthSession } from "@atproto/oauth-client-node";
+
+export async function getSession(): Promise<OAuthSession | null> {
+  const did = await getDid();
+  if (!did) return null;
+
+  try {
+    const client = await getOAuthClient();
+    return await client.restore(did);
+  } catch {
+    return null;
+  }
+}
+
+export async function getDid(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get("did")?.value ?? null;
+}
+
+
+10. Then, create app/oauth/login/route.ts. This route initiates the login flow. You only need the user's handle — with it, you can resolve the user's Authorization Server (their PDS) and redirect them there:
+
+import { NextRequest, NextResponse } from "next/server";
+import { getOAuthClient, SCOPE } from "@/lib/auth/client";
+
+export async function POST(request: NextRequest) {
+  try {
+    const { handle } = await request.json();
+
+    if (!handle || typeof handle !== "string") {
+      return NextResponse.json(
+        { error: "Handle is required" },
+        { status: 400 }
+      );
+    }
+
+    const client = await getOAuthClient();
+
+    // Resolves handle, finds their auth server, returns authorization URL
+    const authUrl = await client.authorize(handle, {
+      scope: SCOPE,
+    });
+
+    return NextResponse.json({ redirectUrl: authUrl.toString() });
+  } catch (error) {
+    console.error("OAuth login error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Login failed" },
+      { status: 500 }
+    );
+  }
+}
+
+
+11. After a user approves the authorization consent screen, they'll be redirected to a callback route. Here, you'll exchange the code from the redirect for actual credentials, then set a cookie for the user's DID. Create app/oauth/callback/route.ts:
+(changed port to 3065)
+import { NextRequest, NextResponse } from "next/server";
+import { getOAuthClient } from "@/lib/auth/client";
+
+const PUBLIC_URL = process.env.PUBLIC_URL || "http://127.0.0.1:3065";
+
+export async function GET(request: NextRequest) {
+  try {
+    const params = request.nextUrl.searchParams;
+    const client = await getOAuthClient();
+
+    // Exchange code for session
+    const { session } = await client.callback(params);
+
+    const response = NextResponse.redirect(new URL("/", PUBLIC_URL));
+
+    // Set DID cookie
+    response.cookies.set("did", session.did, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 1 week
+      path: "/",
+    });
+
+    return response;
+  } catch (error) {
+    console.error("OAuth callback error:", error);
+    return NextResponse.redirect(new URL("/?error=login_failed", PUBLIC_URL));
+  }
+}
+
+
+
+12. Next, you should also create a logout route at app/oauth/logout/route.ts to clear the user's session:
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { getOAuthClient } from "@/lib/auth/client";
+
+export async function POST() {
+  try {
+    const cookieStore = await cookies();
+    const did = cookieStore.get("did")?.value;
+
+    if (did) {
+      const client = await getOAuthClient();
+      await client.revoke(did);
+    }
+
+    cookieStore.delete("did");
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Logout error:", error);
+    const cookieStore = await cookies();
+    cookieStore.delete("did");
+    return NextResponse.json({ success: true });
+  }
+}
+
+# Install forms
+13. Now you just need to add a few forms. Create components/LoginForm.tsx:
+
+"use client";
+
+import { useState } from "react";
+
+export function LoginForm() {
+  const [handle, setHandle] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.SubmitEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/oauth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handle }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      // Redirect to authorization server
+      window.location.href = data.redirectUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label htmlFor="handle" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+          Handle
+        </label>
+        <input
+          id="handle"
+          type="text"
+          value={handle}
+          onChange={(e) => setHandle(e.target.value)}
+          placeholder="user.example.com"
+          className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+          disabled={loading}
+        />
+      </div>
+
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={loading || !handle}
+        className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+      >
+        {loading ? "Signing in..." : "Sign in"}
+      </button>
+    </form>
+  );
+}
+
+Copy
+Copied!
+Do the same for components/LogoutButton.tsx:
+
+"use client";
+
+import { useRouter } from "next/navigation";
+
+export function LogoutButton() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/oauth/logout", { method: "POST" });
+    router.refresh();
+  }
+
+  return (
+    <button
+      onClick={handleLogout}
+      className="text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+    >
+      Sign out
+    </button>
+  );
+}
+
+Copy
+Copied!
+And, finally, replace the starter app/page.tsx to use these components and show the user's DID when logged in:
+
+import { getSession } from "@/lib/auth/session";
+import { LoginForm } from "@/components/LoginForm";
+import { LogoutButton } from "@/components/LogoutButton";
+
+export default async function Home() {
+  const session = await getSession();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+      <main className="w-full max-w-md mx-auto p-8">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
+            AT Protocol OAuth
+          </h1>
+          <p className="text-zinc-600 dark:text-zinc-400">
+            Sign in with your AT Protocol account
+          </p>
+        </div>
+
+        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
+          {session ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Signed in as{" "}
+                  <span className="font-mono">{session.did}</span>
+                </p>
+                <LogoutButton />
+              </div>
+              <p className="text-green-600">Authentication working!</p>
+            </div>
+          ) : (
+            <LoginForm />
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+Copy
+Copied!
+At this point, you should be able to test the OAuth flow!
+
+If your app isn't already running from Part 1, start it with:
+
+pnpm dev
+
+Copy
+Copied!
+Then:
+
+Navigate to your app in a browser at http://127.0.0.1:3000.
+Enter your handle
+Authorize the app
+You should see "Authentication working!" with your DID:
+
+Congratulations — you've now implemented working OAuth as a baseline, and can move on to
