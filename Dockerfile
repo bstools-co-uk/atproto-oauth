@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 
 # Custom arguments for versioning and app naming
-ARG DOCKERFILE_VERSION=0.1.1
+ARG DOCKERFILE_VERSION=0.2.0
 ARG APP_NAME=bstools-alias
 
 
