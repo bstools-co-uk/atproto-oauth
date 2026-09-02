@@ -10,9 +10,11 @@ ARG APP_NAME=bstools-alias
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install curl and nano for debugging (and basics nvm/node builds may need)
+# git may be needed, according to error logs; experimentation needed
+# jq is needed for JSON manipulation in scripts
 RUN apt-get update && \
     apt-get upgrade -y && \
-    apt-get install -y --no-install-recommends curl ca-certificates nano && \
+    apt-get install -y --no-install-recommends curl ca-certificates nano git jq&& \
     rm -rf /var/lib/apt/lists/*
 
 # Set up NVM environment variables
@@ -63,9 +65,37 @@ const nextConfig: NextConfig = {\
 \
 export default nextConfig;" > next.config.ts
 
+# In the following sections, certain packages have been identified as requiring approval for builds due to their native dependencies.
+# The `pnpm approve-builds` command is used to handle these cases.
+# core-js; better-sqlite3; esbuild
+
 # Add oauth-client-node package from atproto ecosystem
-# there is a known issue with core-js builds in pnpm, so we approve builds if the add fails
 RUN pnpm add @atproto/oauth-client-node || pnpm approve-builds core-js
+
+# 2. Add database capability to the project (necessary for DPoP etc.)
+RUN pnpm add better-sqlite3 || pnpm approve-builds better-sqlite3
+RUN pnpm add kysely
+RUN pnpm add -D @types/better-sqlite3
+RUN pnpm add -D tsx || pnpm approve-builds esbuild && pnpm add -D tsx
+
+# Update next.config.ts to include experimental features for the database
+RUN echo "import type { NextConfig } from \"next\";\
+\
+const nextConfig: NextConfig = {\
+  allowedDevOrigins: [\"127.0.0.1\"],\
+  serverExternalPackages: [\"better-sqlite3\"],\
+};\
+\
+export default nextConfig;" > next.config.ts
+#RUN pnpm add -D tsx
+
+# Update package.json scripts to include migration and development commands
+RUN jq '\
+  .scripts.migrate = "tsx scripts/migrate.ts"\
+  | .scripts.dev = "pnpm migrate && next dev"\
+  | .scripts.start = "pnpm migrate && next start"\
+  ' package.json > package.tmp.json && mv package.tmp.json package.json
+
 
 COPY resources/ .
 

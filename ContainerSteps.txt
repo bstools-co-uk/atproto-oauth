@@ -371,3 +371,8 @@ Authorize the app
 You should see "Authentication working!" with your DID:
 
 Congratulations — you've now implemented working OAuth as a baseline, and can move on to
+
+
+# Important:
+onlyBuiltDependencies as described in the tutorial is deprecatedd.
+I have used a dynamic allowance approach in my compose file.
