@@ -376,3 +376,28 @@ Congratulations — you've now implemented working OAuth as a baseline, and can 
 # Important:
 onlyBuiltDependencies as described in the tutorial is deprecatedd.
 I have used a dynamic allowance approach in my compose file.
+
+Section 3:
+Error due to Kysely update (from Claude):
+Root cause
+
+The atproto tutorial you're following says import { Kysely, Migration, Migrator } from "kysely". That worked when the tutorial was written, but recent Kysely releases expose migrations from a separate 'kysely/migration' subpath and deprecated the migration exports from the package root. Migrator, Migration, and FileMigrationProvider are no longer exported from the root kysely package at all — I confirmed this directly by installing the latest kysely (0.29.5) and testing it: require('kysely').Migrator is undefined, but require('kysely/migration').Migrator exists and works fine. 
+GitHub
+
+Since your Dockerfile does pnpm add kysely with no version pin, it grabbed the latest version, which has this breaking change. Your import { ..., Migrator } from "kysely" in lib/db/migrations.ts silently imports undefined for Migrator, and new undefined(...) throws exactly the is not a constructor error you're seeing.
+
+Fix
+
+In lib/db/migrations.ts (in your resources/ folder on the host), change the import:
+
+typescript
+import { Kysely } from "kysely";
+import { Migration, Migrator } from "kysely/migration";
+
+That's the only change needed — everything else in your migrations.ts and scripts/migrate.ts stays the same.
+
+
+####
+
+
+Later, gen-key.ts needs to be renamed gen-key.mts to fix an issue with an upstream dependency issue

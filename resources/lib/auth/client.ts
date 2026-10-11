@@ -1,34 +1,60 @@
-import { getDb } from "../db";
-
 import {
-  NodeOAuthClient,
-  buildAtprotoLoopbackClientMetadata,
+    JoseKey,
+    Keyset,
+    NodeOAuthClient,
+    buildAtprotoLoopbackClientMetadata,
 } from "@atproto/oauth-client-node";
 import type {
-  NodeSavedSession,
-  NodeSavedState,
+    NodeSavedSession,
+    NodeSavedState,
+    OAuthClientMetadataInput,
 } from "@atproto/oauth-client-node";
+import { getDb } from "../db";
 
 export const SCOPE = "atproto";
 
-// Use globalThis to persist across Next.js hot reloads
-const globalAuth = globalThis as unknown as {
-  stateStore: Map<string, NodeSavedState>;
-  sessionStore: Map<string, NodeSavedSession>;
-};
-globalAuth.stateStore ??= new Map();
-globalAuth.sessionStore ??= new Map();
-
 let client: NodeOAuthClient | null = null;
+
+const PUBLIC_URL = process.env.PUBLIC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+
+function getClientMetadata(): OAuthClientMetadataInput {
+    if (PUBLIC_URL) {
+        return {
+            client_id: `${PUBLIC_URL}/oauth-client-metadata.json`,
+            client_name: "OAuth Tutorial",
+            client_uri: PUBLIC_URL,
+            redirect_uris: [`${PUBLIC_URL}/oauth/callback`],
+            grant_types: ["authorization_code", "refresh_token"],
+            response_types: ["code"],
+            scope: SCOPE,
+            token_endpoint_auth_method: "private_key_jwt" as const,
+            token_endpoint_auth_signing_alg: "ES256" as const, // must match the alg in scripts/gen-key.ts
+            jwks_uri: `${PUBLIC_URL}/.well-known/jwks.json`,
+            dpop_bound_access_tokens: true,
+        };
+    } else {
+        return buildAtprotoLoopbackClientMetadata({
+            scope: SCOPE,
+            redirect_uris: ["http://127.0.0.1:3065/oauth/callback"],
+        });
+    }
+}
+
+async function getKeyset(): Promise<Keyset | undefined> {
+    if (PUBLIC_URL && PRIVATE_KEY) {
+        return new Keyset([await JoseKey.fromJWK(JSON.parse(PRIVATE_KEY))]);
+    } else {
+        return undefined;
+    }
+}
 
 export async function getOAuthClient(): Promise<NodeOAuthClient> {
   if (client) return client;
 
   client = new NodeOAuthClient({
-    clientMetadata: buildAtprotoLoopbackClientMetadata({
-      scope: SCOPE,
-      redirect_uris: ["http://127.0.0.1:3065/oauth/callback"],
-    }),
+    clientMetadata: getClientMetadata(),
+    keyset: await getKeyset(),
 
     stateStore: {
       async get(key: string) {

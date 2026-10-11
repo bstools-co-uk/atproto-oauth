@@ -57,13 +57,13 @@ RUN pnpm create next-app@latest ${APP_NAME} --yes
 WORKDIR /app/${APP_NAME}
 
 # Modify next.config.ts to include allowedDevOrigins
-RUN echo "import type { NextConfig } from \"next\";\
-\
-const nextConfig: NextConfig = {\
-  allowedDevOrigins: [\"127.0.0.1\"],\
-};\
-\
-export default nextConfig;" > next.config.ts
+# RUN echo "import type { NextConfig } from \"next\";\
+# \
+# const nextConfig: NextConfig = {\
+#   allowedDevOrigins: [\"127.0.0.1\"],\
+# };\
+# \
+# export default nextConfig;" > next.config.ts
 
 # In the following sections, certain packages have been identified as requiring approval for builds due to their native dependencies.
 # The `pnpm approve-builds` command is used to handle these cases.
@@ -82,7 +82,7 @@ RUN pnpm add -D tsx || pnpm approve-builds esbuild && pnpm add -D tsx
 RUN echo "import type { NextConfig } from \"next\";\
 \
 const nextConfig: NextConfig = {\
-  allowedDevOrigins: [\"127.0.0.1\"],\
+  allowedDevOrigins: [\"127.0.0.1\",\"192.168.1.59\",\"alias.bstools.co.uk\"],\
   serverExternalPackages: [\"better-sqlite3\"],\
 };\
 \
@@ -94,9 +94,18 @@ RUN jq '\
   .scripts.migrate = "tsx scripts/migrate.ts"\
   | .scripts.dev = "pnpm migrate && next dev"\
   | .scripts.start = "pnpm migrate && next start"\
+  | .scripts["gen-key"] = "tsx scripts/gen-key.mts"\
   ' package.json > package.tmp.json && mv package.tmp.json package.json
 
 
+# 3. Add resources and entrypoint script to the project
 COPY resources/ .
+
+RUN pnpm build
+
+COPY entrypoint.sh entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
 
 CMD ["pnpm", "dev"]

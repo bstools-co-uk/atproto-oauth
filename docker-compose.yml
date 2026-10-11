@@ -1,0 +1,13 @@
+services:
+  atproto_oauth:
+    container_name: atproto_oauth
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: atproto_oauth:latest
+    restart: unless-stopped
+    ports:
+      - "3065:3000"
+networks:
+  default:
+    name: atproto_oauth_network
