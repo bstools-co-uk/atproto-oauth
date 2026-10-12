@@ -76,6 +76,7 @@ RUN pnpm add @atproto/oauth-client-node || pnpm approve-builds core-js
 RUN pnpm add better-sqlite3 || pnpm approve-builds better-sqlite3
 RUN pnpm add kysely
 RUN pnpm add -D @types/better-sqlite3
+RUN pnpm add -D @tailwindcss/postcss postcss
 RUN pnpm add -D tsx || pnpm approve-builds esbuild && pnpm add -D tsx
 
 # Update next.config.ts to include experimental features for the database
@@ -103,7 +104,7 @@ COPY resources/ .
 
 RUN pnpm build
 
-COPY entrypoint.sh entrypoint.sh .
+COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
