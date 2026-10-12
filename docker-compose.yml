@@ -12,6 +12,7 @@ services:
       - atproto_oauth_data:/app/data
     environment:
       - PUBLIC_URL=https://test_alias.bstools.co.uk
+      - DATABASE_PATH=/app/data/app.db
 networks:
   default:
     name: atproto_oauth_network

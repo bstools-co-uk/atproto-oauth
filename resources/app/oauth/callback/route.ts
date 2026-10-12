@@ -1,30 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getOAuthClient } from "@/lib/auth/client";
+import { getDid } from "@/lib/auth/session";
 
-const PUBLIC_URL = process.env.PUBLIC_URL || "http://127.0.0.1:3065";
-
-export async function GET(request: NextRequest) {
+export async function POST() {
+  const cookieStore = await cookies();
   try {
-    const params = request.nextUrl.searchParams;
-    const client = await getOAuthClient();
+    const did = await getDid();
 
-    // Exchange code for session
-    const { session } = await client.callback(params);
-
-    const response = NextResponse.redirect(new URL("/", PUBLIC_URL));
-
-    // Set DID cookie
-    response.cookies.set("did", session.did, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 1 week
-      path: "/",
-    });
-
-    return response;
+    if (did) {
+      const client = await getOAuthClient();
+      await client.revoke(did);
+    }
   } catch (error) {
-    console.error("OAuth callback error:", error);
-    return NextResponse.redirect(new URL("/?error=login_failed", PUBLIC_URL));
+    console.error("Logout error:", error);
   }
+
+  cookieStore.delete("did");
+  return NextResponse.json({ success: true });
 }
