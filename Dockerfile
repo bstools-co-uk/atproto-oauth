@@ -109,4 +109,4 @@ RUN chmod +x entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
 
-CMD ["pnpm", "dev"]
+#CMD ["pnpm", "dev"]
