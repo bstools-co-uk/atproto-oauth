@@ -83,7 +83,7 @@ RUN pnpm add -D tsx || pnpm approve-builds esbuild && pnpm add -D tsx
 RUN echo "import type { NextConfig } from \"next\";\
 \
 const nextConfig: NextConfig = {\
-  allowedDevOrigins: [\"127.0.0.1\",\"192.168.1.59\",\"alias.bstools.co.uk\"],\
+  allowedDevOrigins: [\"127.0.0.1\",\"192.168.1.59\",\"alias.bstools.co.uk\",\"test_alias.bstools.co.uk\"],\
   serverExternalPackages: [\"better-sqlite3\"],\
 };\
 \
