@@ -22,6 +22,20 @@ const migrations: Record<string, Migration> = {
       await db.schema.dropTable("auth_state").execute();
     },
   },
+  "002": {
+    async up(db: Kysely<unknown>) {
+      await db.schema
+        .createTable("github_link")
+        .addColumn("did", "text", (c) => c.primaryKey())
+        .addColumn("github_id", "text", (c) => c.notNull())
+        .addColumn("github_login", "text", (c) => c.notNull())
+        .addColumn("verified_at", "text", (c) => c.notNull())
+        .execute();
+    },
+    async down(db: Kysely<unknown>) {
+      await db.schema.dropTable("github_link").execute();
+    },
+  },
 };
 
 export function getMigrator() {

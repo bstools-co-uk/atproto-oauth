@@ -20,6 +20,7 @@ export const getDb = (): Kysely<DatabaseSchema> => {
 export interface DatabaseSchema {
   auth_state: AuthStateTable;
   auth_session: AuthSessionTable;
+  github_link: { did: string; github_id: string; github_login: string; verified_at: string };
 }
 
 interface AuthStateTable {
