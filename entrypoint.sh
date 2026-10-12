@@ -17,7 +17,9 @@ fi
 export $(grep -v '^#' "$KEY_FILE" | xargs -0 -I{} echo {})
 export PRIVATE_KEY="$(cut -d= -f2- "$KEY_FILE")"
 
-# Hard-code the public URL
-export PUBLIC_URL="${PUBLIC_URL:-https://test_alias.bstools.co.uk}"
+# Set the public URL
+# during dev, is set in the docker-compose.yml file for the live version
+#export PUBLIC_URL="${PUBLIC_URL:-https://test_alias.bstools.co.uk}"
+if [ -n "$PUBLIC_URL" ]; then export PUBLIC_URL; else unset PUBLIC_URL; fi
 
 exec pnpm start

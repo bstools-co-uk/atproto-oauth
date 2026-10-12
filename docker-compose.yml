@@ -10,6 +10,8 @@ services:
       - "3065:3000"
     volumes:
       - atproto_oauth_data:/app/data
+    environment:
+      - PUBLIC_URL=https://test_alias.bstools.co.uk
 networks:
   default:
     name: atproto_oauth_network
