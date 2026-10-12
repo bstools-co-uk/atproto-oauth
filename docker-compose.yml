@@ -8,6 +8,11 @@ services:
     restart: unless-stopped
     ports:
       - "3065:3000"
+    volumes:
+      - atproto_oauth_data:/app/data
 networks:
   default:
     name: atproto_oauth_network
+volumes:
+  atproto_oauth_data:
+    name: atproto_oauth_data
