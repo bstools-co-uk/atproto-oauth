@@ -18,6 +18,6 @@ export $(grep -v '^#' "$KEY_FILE" | xargs -0 -I{} echo {})
 export PRIVATE_KEY="$(cut -d= -f2- "$KEY_FILE")"
 
 # Hard-code the public URL
-export PUBLIC_URL="${PUBLIC_URL:-https://test.alias.bstools.co.uk}"
+export PUBLIC_URL="${PUBLIC_URL:-https://test_alias.bstools.co.uk}"
 
 exec pnpm start
