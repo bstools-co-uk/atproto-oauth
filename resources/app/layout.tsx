@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Alias Verifier",
+  title: "alias.bstools.co.uk - AT Protocol OAuth",
   description: "Link accounts on other services to your atproto identity.",
 };
 
