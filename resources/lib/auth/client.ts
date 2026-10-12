@@ -27,7 +27,7 @@ function getClientMetadata(): OAuthClientMetadataInput {
     if (PUBLIC_URL) {
         return {
             client_id: `${PUBLIC_URL}/oauth-client-metadata.json`,
-            client_name: "OAuth Tutorial",
+            client_name: "alias.bstools.co.uk",
             client_uri: PUBLIC_URL,
             redirect_uris: [`${PUBLIC_URL}/oauth/callback`],
             grant_types: ["authorization_code", "refresh_token"],

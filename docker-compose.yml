@@ -10,6 +10,8 @@ services:
       - "3065:3000"
     volumes:
       - atproto_oauth_data:/app/data
+    env_file:
+      - .env
     environment:
       - PUBLIC_URL=https://test_alias.bstools.co.uk
       - DATABASE_PATH=/app/data/app.db

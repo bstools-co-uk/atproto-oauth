@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Agent } from "@atproto/api";
 import { getSession } from "@/lib/auth/session";
+import { getGithubLink } from "@/lib/github";
 
 const ALIAS_NSID = "uk.co.bstools.alias.test.link";
 const HOST_DID = process.env.HOST_DID ?? "did:plc:tka3pdbs3wapp4asr7nfj7w2";
@@ -11,16 +12,20 @@ export async function POST() {
     return NextResponse.json({ error: "not signed in" }, { status: 401 });
   }
 
+  const link = await getGithubLink(session.did);
+  if (!link) {
+    return NextResponse.json({ error: "verify GitHub first" }, { status: 409 });
+  }
+
   const agent = new Agent(session);
   try {
     const res = await agent.com.atproto.repo.createRecord({
       repo: session.did,
       collection: ALIAS_NSID,
-      // validate: true, - rejected by PDS' that doesn't know alias lexicon
       record: {
         $type: ALIAS_NSID,
         service: "github",
-        identifier: "test-0",
+        identifier: link.github_id,
         authoriser: HOST_DID,
         createdAt: new Date().toISOString(),
       },
