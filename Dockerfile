@@ -71,6 +71,7 @@ WORKDIR /app/${APP_NAME}
 
 # Add oauth-client-node package from atproto ecosystem
 RUN pnpm add @atproto/oauth-client-node || pnpm approve-builds core-js
+RUN pnpm add @atproto/api
 
 # 2. Add database capability to the project (necessary for DPoP etc.)
 RUN pnpm add better-sqlite3 || pnpm approve-builds better-sqlite3

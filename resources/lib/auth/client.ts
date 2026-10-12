@@ -1,3 +1,6 @@
+// TODO:
+// When moving to production, replace alias.test.* with alias.*
+
 import {
     JoseKey,
     Keyset,
@@ -11,7 +14,9 @@ import type {
 } from "@atproto/oauth-client-node";
 import { getDb } from "../db";
 
-export const SCOPE = "atproto";
+// export const SCOPE = "atproto"; // This is an id only scope
+// Request access with an appropriate scope to create and delete alias link records
+export const SCOPE = "atproto repo:uk.co.bstools.alias.test.link?action=create&action=delete";
 
 let client: NodeOAuthClient | null = null;
 
