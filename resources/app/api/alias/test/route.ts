@@ -16,7 +16,7 @@ export async function POST() {
     const res = await agent.com.atproto.repo.createRecord({
       repo: session.did,
       collection: ALIAS_NSID,
-      validate: true,
+      // validate: true, - rejected by PDS' that doesn't know alias lexicon
       record: {
         $type: ALIAS_NSID,
         service: "github",
