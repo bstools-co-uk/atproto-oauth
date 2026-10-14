@@ -21,6 +21,10 @@ export interface DatabaseSchema {
   auth_state: AuthStateTable;
   auth_session: AuthSessionTable;
   github_link: { did: string; github_id: string; github_login: string; verified_at: string };
+  alias_record: {
+    alias_uri: string; did: string; alias_cid: string;
+    github_id: string; attestation_uri: string | null; created_at: string;
+  };
 }
 
 interface AuthStateTable {

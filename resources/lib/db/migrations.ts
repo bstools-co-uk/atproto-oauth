@@ -36,6 +36,22 @@ const migrations: Record<string, Migration> = {
       await db.schema.dropTable("github_link").execute();
     },
   },
+    "003": {
+    async up(db: Kysely<unknown>) {
+      await db.schema
+        .createTable("alias_record")
+        .addColumn("alias_uri", "text", (c) => c.primaryKey())
+        .addColumn("did", "text", (c) => c.notNull())
+        .addColumn("alias_cid", "text", (c) => c.notNull())
+        .addColumn("github_id", "text", (c) => c.notNull())
+        .addColumn("attestation_uri", "text")
+        .addColumn("created_at", "text", (c) => c.notNull())
+        .execute();
+    },
+    async down(db: Kysely<unknown>) {
+      await db.schema.dropTable("alias_record").execute();
+    },
+  },
 };
 
 export function getMigrator() {
