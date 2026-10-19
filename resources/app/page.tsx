@@ -45,7 +45,7 @@ export default async function Home({
 
   const [profile, accredited, ghLink] = session
     ? await Promise.all([
-        getProfile(session),
+        getProfile(session.did),
         getAccreditedServices(session.did),
         getGithubLink(session.did),
       ])
