@@ -14,6 +14,9 @@ const ERRORS: Record<string, string> = {
   github_user: "Could not read your GitHub profile.",
 };
 
+
+// use the bsky public agent to fetch the profile for a given DID
+// could later try doing this directrly from the PDS, in case the user doesn't have a bsky profile
 const publicAgent = new Agent("https://public.api.bsky.app");
 
 async function getProfile(did: string) {
@@ -26,15 +29,6 @@ async function getProfile(did: string) {
   }
 }
 
-// async function getProfile(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
-//   try {
-//     const res = await new Agent(session).getProfile({ actor: session.did });
-//     return res.data;
-//   } catch {
-//     return null;
-//   }
-// }
-
 export default async function Home({
   searchParams,
 }: {
@@ -46,7 +40,7 @@ export default async function Home({
   const [profile, accredited, ghLink] = session
     ? await Promise.all([
         getProfile(session.did),
-        getAccreditedServices(session.did),
+        getAccreditedServices(session),
         getGithubLink(session.did),
       ])
     : [null, new Set<string>(), null];
