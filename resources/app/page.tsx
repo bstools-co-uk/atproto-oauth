@@ -14,14 +14,26 @@ const ERRORS: Record<string, string> = {
   github_user: "Could not read your GitHub profile.",
 };
 
-async function getProfile(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
+const publicAgent = new Agent("https://public.api.bsky.app");
+
+async function getProfile(did: string) {
   try {
-    const res = await new Agent(session).getProfile({ actor: session.did });
+    const res = await publicAgent.getProfile({ actor: did });
     return res.data;
-  } catch {
+  } catch (err) {
+    console.error("getProfile failed:", err);
     return null;
   }
 }
+
+// async function getProfile(session: NonNullable<Awaited<ReturnType<typeof getSession>>>) {
+//   try {
+//     const res = await new Agent(session).getProfile({ actor: session.did });
+//     return res.data;
+//   } catch {
+//     return null;
+//   }
+// }
 
 export default async function Home({
   searchParams,
