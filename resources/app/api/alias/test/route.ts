@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { getGithubLink } from "@/lib/github";
 import { getHostAgent } from "@/lib/host";
 import { getDb } from "@/lib/db";
+import { attestRkey } from "@/lib/alias";
 
 const ALIAS_NSID = "uk.co.bstools.alias.test.link";
 const ATTEST_NSID = "uk.co.bstools.alias.test.attestation";
@@ -43,14 +44,26 @@ export async function POST() {
     }
 
     if (!row) {
-      const created = await agent.com.atproto.repo.createRecord({
-        repo: session.did,
-        collection: ALIAS_NSID,
+      // const created = await agent.com.atproto.repo.createRecord({
+      //   repo: session.did,
+      //   collection: ALIAS_NSID,
+      //   record: {
+      //     $type: ALIAS_NSID,
+      //     service: "github",
+      //     identifier: link.github_id,
+      //     authoriser: HOST_DID,
+      //     createdAt: new Date().toISOString(),
+      //   },
+      // });
+      const att = await host.com.atproto.repo.putRecord({
+        repo: HOST_DID,
+        collection: ATTEST_NSID,
+        rkey: attestRkey(session.did, "github", link.github_id),
         record: {
-          $type: ALIAS_NSID,
-          service: "github",
-          identifier: link.github_id,
-          authoriser: HOST_DID,
+          $type: ATTEST_NSID,
+          subject: { uri: row.alias_uri, cid: row.alias_cid },
+          did: session.did,
+          method: "oauth",
           createdAt: new Date().toISOString(),
         },
       });

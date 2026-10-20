@@ -3,6 +3,7 @@ import type { OAuthSession } from "@atproto/oauth-client-node";
 import { getDb } from "@/lib/db";
 import { getGithubLink } from "@/lib/github";
 import { getHostAgent } from "@/lib/host";
+import { createHash } from "node:crypto";
 
 // keep in sync with api/alias/test
 const ALIAS_NSID = "uk.co.bstools.alias.test.link";
@@ -11,6 +12,13 @@ const HOST_DID = process.env.HOST_DID ?? "did:plc:tka3pdbs3wapp4asr7nfj7w2";
 
 const isNotFound = (err: unknown) =>
   (err as { error?: string }).error === "RecordNotFound";
+
+export function attestRkey(did: string, service: string, identifier: string) {
+  return createHash("sha256")
+    .update(`${did}|${service}|${identifier}`)
+    .digest("hex")
+    .slice(0, 32);
+}
 
 export async function getAccreditedServices(session: OAuthSession): Promise<Set<string>> {
   const accredited = new Set<string>();
