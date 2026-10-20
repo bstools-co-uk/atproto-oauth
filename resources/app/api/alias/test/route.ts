@@ -44,26 +44,14 @@ export async function POST() {
     }
 
     if (!row) {
-      // const created = await agent.com.atproto.repo.createRecord({
-      //   repo: session.did,
-      //   collection: ALIAS_NSID,
-      //   record: {
-      //     $type: ALIAS_NSID,
-      //     service: "github",
-      //     identifier: link.github_id,
-      //     authoriser: HOST_DID,
-      //     createdAt: new Date().toISOString(),
-      //   },
-      // });
-      const att = await host.com.atproto.repo.putRecord({
-        repo: HOST_DID,
-        collection: ATTEST_NSID,
-        rkey: attestRkey(session.did, "github", link.github_id),
+      const created = await agent.com.atproto.repo.createRecord({
+        repo: session.did,
+        collection: ALIAS_NSID,
         record: {
-          $type: ATTEST_NSID,
-          subject: { uri: row.alias_uri, cid: row.alias_cid },
-          did: session.did,
-          method: "oauth",
+          $type: ALIAS_NSID,
+          service: "github",
+          identifier: link.github_id,
+          authoriser: HOST_DID,
           createdAt: new Date().toISOString(),
         },
       });
@@ -78,13 +66,16 @@ export async function POST() {
       await db.insertInto("alias_record").values(row).execute();
     }
 
-    if (!row.attestation_uri) {
+    // Attest if missing, or if an old random-rkey attestation needs migrating
+    const rkey = attestRkey(session.did, "github", link.github_id);
+    if (!row.attestation_uri || !row.attestation_uri.endsWith(`/${rkey}`)) {
       try {
         const host = await getHostAgent();
         if (host.did !== HOST_DID) throw new Error("host account DID mismatch");
-        const att = await host.com.atproto.repo.createRecord({
+        const att = await host.com.atproto.repo.putRecord({
           repo: HOST_DID,
           collection: ATTEST_NSID,
+          rkey,
           record: {
             $type: ATTEST_NSID,
             subject: { uri: row.alias_uri, cid: row.alias_cid },
